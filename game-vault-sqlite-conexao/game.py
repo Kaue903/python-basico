@@ -86,13 +86,32 @@ def marcar_como_zerado(titulo):
     return encontrou
 
 
+# Função para deletar um jogo
+def deletar_jogo(titulo):
+    conn = sqlite3.connect(CAMINHO_BANCO)
+    cursor = conn.cursor()
+
+    cursor.execute(
+        "DELETE FROM jogos WHERE titulo = ?",
+        (titulo,)
+    )
+
+    encontrou = cursor.rowcount > 0
+
+    conn.commit()
+    conn.close()
+
+    return encontrou
+
+
 def exibir_menu():
     exibir_cabecalho("🎮 GameVault")
 
     print("1. Adicionar jogo")
     print("2. Listar jogos")
     print("3. Marcar jogo como zerado")
-    print("4. Sair")
+    print("4. Deletar jogo")
+    print("5. Sair")
     print()
 
 
@@ -108,6 +127,7 @@ def main():
 
         opcao = input("Escolha uma opção: ")
 
+        # Adicionar jogo
         if opcao == "1":
             exibir_cabecalho("Adicionar jogo")
 
@@ -117,14 +137,18 @@ def main():
             adicionar_jogo(titulo, plataforma)
 
             print(f"\n'{titulo}' adicionado com sucesso!")
+
             pausar()
 
+        # Listar jogos
         elif opcao == "2":
             exibir_cabecalho("Seus jogos")
 
             listar_jogos()
+
             pausar()
 
+        # Marcar como zerado
         elif opcao == "3":
             exibir_cabecalho("Marcar como zerado")
 
@@ -138,12 +162,28 @@ def main():
 
             pausar()
 
+        # Deletar jogo
         elif opcao == "4":
+            exibir_cabecalho("Deletar jogo")
+
+            titulo = input("Título do jogo que deseja deletar: ")
+
+            if deletar_jogo(titulo):
+                print(f"\n'{titulo}' deletado com sucesso!")
+            else:
+                print(f"\n'{titulo}' não encontrado!")
+                print("Confira se digitou corretamente.")
+
+            pausar()
+
+        # Sair
+        elif opcao == "5":
             print("Até a próxima! 😁")
             break
 
+        # Opção inválida
         else:
-            print("Opção inválida! Escolha um número de 1 a 4.")
+            print("Opção inválida! Escolha um número de 1 a 5.")
             pausar()
 
 
