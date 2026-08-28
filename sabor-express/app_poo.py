@@ -1,153 +1,358 @@
-#  Texto especial para usar no projeto (abaixo)
-#  𝕊𝕒𝕓𝕠𝕣 𝕖𝕩𝕡𝕣𝕖𝕤𝕤
+# Sabor Express - Versão Orientada a Objetos com SQLite
+# Sistema de cadastro e gerenciamento de restaurantes
 
 import os
-
-class Restaurante:
-
-    def __init__(self, nome, categoria):
-            self.nome = nome
-            self.categoria = categoria
-            self.activo = False
+import sqlite3
 
 
-
-    def alternar_estado(self):
-        self.activo = not self.activo
-
-
-
-    def __str__(self):
-         status = "ativado" if self.activo else "desativado"
-         return f"{self.nome.ljust(20)} | {self.categoria.ljust(20)} | {status}"
-
+# Classe principal do sistema.
+# Responsável pela comunicação com o banco de dados.
 class SaborExpress:
 
+    # Construtor
+    def __init__(self, caminho_banco="restaurantes.db"):
+        self.caminho_banco = caminho_banco
+        self.inicializar_banco()
 
-    def __init__(self):
-         self.restaurantes = [
-                Restaurante("Praça", "Japonesa"),
-                Restaurante("Pizza suprema", "Pizza"),
-                Restaurante("Cantina", "Italiana"),
-         ]
+    # Cria o banco e a tabela caso ainda não existam
+    def inicializar_banco(self):
+        conn = sqlite3.connect(self.caminho_banco)
+        cursor = conn.cursor()
 
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS restaurantes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nome TEXT NOT NULL,
+                categoria TEXT NOT NULL,
+                ativo BOOLEAN NOT NULL DEFAULT 0
+            )
+        """)
 
+        # Insere os restaurantes iniciais somente se a tabela estiver vazia
+        cursor.execute("SELECT COUNT(*) FROM restaurantes")
+        total = cursor.fetchone()[0]
+
+        if total == 0:
+            restaurantes_iniciais = [
+                ("Praça", "Japonesa", False),
+                ("Pizza Suprema", "Pizza", True),
+                ("Cantina", "Italiano", False)
+            ]
+
+            cursor.executemany(
+                """
+                INSERT INTO restaurantes
+                (nome, categoria, ativo)
+                VALUES (?, ?, ?)
+                """,
+                restaurantes_iniciais
+            )
+
+        conn.commit()
+        conn.close()
+
+    # Cadastra um novo restaurante no banco
     def cadastrar_restaurante(self, nome, categoria):
-        novo_restaurante = Restaurante(nome, categoria)
-        self.restaurantes.append(novo_restaurante)
-        return novo_restaurante
+        try:
+            conn = sqlite3.connect(self.caminho_banco)
+            cursor = conn.cursor()
 
+            cursor.execute(
+                """
+                INSERT INTO restaurantes
+                (nome, categoria, ativo)
+                VALUES (?, ?, ?)
+                """,
+                (nome, categoria, False)
+            )
 
-    def buscar_restaurante(self, nome):
-        for restaurante in self.restaurantes:
-            if restaurante.nome == nome:
-                return restaurante
+            conn.commit()
+            conn.close()
+
+            return True
+
+        except sqlite3.Error as erro:
+            print(f"Erro ao cadastrar restaurante: {erro}")
+            return False
+
+    # Busca o estado atual de um restaurante
+    def buscar_estado(self, nome):
+        conn = sqlite3.connect(self.caminho_banco)
+        cursor = conn.cursor()
+
+        cursor.execute(
+            "SELECT ativo FROM restaurantes WHERE nome = ?",
+            (nome,)
+        )
+
+        resultado = cursor.fetchone()
+
+        conn.close()
+
+        if resultado is not None:
+            return resultado[0]
+
         return None
 
+    # Alterna o restaurante entre ativo e desativado
+    def alternar_estado(self, nome):
+        estado_atual = self.buscar_estado(nome)
 
+        if estado_atual is None:
+            return None
+
+        novo_estado = not estado_atual
+
+        conn = sqlite3.connect(self.caminho_banco)
+        cursor = conn.cursor()
+
+        cursor.execute(
+            """
+            UPDATE restaurantes
+            SET ativo = ?
+            WHERE nome = ?
+            """,
+            (novo_estado, nome)
+        )
+
+        conn.commit()
+        conn.close()
+
+        return novo_estado
+
+    # Lista todos os restaurantes do banco
     def listar_restaurantes(self):
-        return self.restaurantes
+        conn = sqlite3.connect(self.caminho_banco)
+        cursor = conn.cursor()
+
+        cursor.execute(
+            """
+            SELECT nome, categoria, ativo
+            FROM restaurantes
+            ORDER BY nome
+            """
+        )
+
+        restaurantes = cursor.fetchall()
+
+        conn.close()
+
+        return restaurantes
+
+    # Verifica se um restaurante existe
+    def restaurante_existe(self, nome):
+        conn = sqlite3.connect(self.caminho_banco)
+        cursor = conn.cursor()
+
+        cursor.execute(
+            "SELECT id FROM restaurantes WHERE nome = ?",
+            (nome,)
+        )
+
+        resultado = cursor.fetchone()
+
+        conn.close()
+
+        return resultado is not None
+
+    # Exclui um restaurante
+    def excluir_restaurante(self, nome):
+        conn = sqlite3.connect(self.caminho_banco)
+        cursor = conn.cursor()
+
+        cursor.execute(
+            "DELETE FROM restaurantes WHERE nome = ?",
+            (nome,)
+        )
+
+        conn.commit()
+        conn.close()
 
 
+# Classe responsável pela interação com o usuário
 class Menu:
 
+    # Construtor
     def __init__(self):
         self.app = SaborExpress()
 
-
-# ------------Método para exibir o menu principal --------
+    # Exibe um subtítulo
     def exibir_subtitulo(self, texto):
         os.system("cls")
-        linha = "-" * len(texto)
+
+        linha = "*" * len(texto)
+
         print(linha)
         print(texto)
         print(linha)
         print()
 
+    # Exibe o nome do programa
     def exibir_nome_do_programa(self):
-        print("𝕊𝕒𝕓𝕠𝕣 𝕖𝕩𝕡𝕣𝕖𝕤𝕤")
+        print("""
+        𝕊𝕒𝕓𝕠𝕣 𝕖𝕩𝕡𝕣𝕖𝕤𝕤
+        """)
 
-
+    # Exibe as opções do menu
     def exibir_opcoes(self):
         print("1. Cadastrar restaurante")
-        print("2. Listar restaurantes")
+        print("2. Listar restaurante")
         print("3. Alternar estado do restaurante")
-        print("4. Sair")
+        print("4. Excluir restaurante")
+        print("5. Sair\n")
 
-
-# ------- Método de ação (chamdos a partir do menu) -------------
-
+    # Cadastra um novo restaurante
     def cadastrar_novo_restaurante(self):
-        self.exibir_subtitulo("Cadastro de novos Restaurantes")
+        self.exibir_subtitulo("Cadastro de novos restaurantes\n")
+
         nome = input("Digite o nome do restaurante que deseja cadastrar: ")
-        categoria = input("Digite o nome da categoria do restaurante {nome}: ")
 
-        self.app.cadastrar_restaurante(nome, categoria)
-        print(f"O restaurante {nome} foi cadastrado com sucesso!")
+        categoria = input(f"Digite o nome da categoria do restaurante {nome}: ")
+
+        sucesso = self.app.cadastrar_restaurante(nome, categoria)
+
+        if sucesso:
+            print(f"O restaurante {nome} foi cadastrado com sucesso!")
 
         self.voltar_ao_menu_principal()
 
+    # Alterna o estado do restaurante
+    def alternar_estado_do_restaurante(self):
+        self.exibir_subtitulo("Alternando estado do restaurante\n")
 
-    def alternar_estado_restaurante(self):
-        self.exibir_subtitulo("Alternar estado do restaurante")
-        nome_restaurante = input("Digite o nome do restaurante que deseja alternar o estado: ")
+        nome = input("Digite o nome do restaurante que deseja alterar o estado: ")
 
-        restaurante = self.app.buscar_restaurante(nome_restaurante)
-        if restaurante:
-            restaurante.alternar_estado()
-            status = "ativado" if restaurante.activo else "desativado"
-            print(f"O estado do restaurante {nome_restaurante} foi {status} com sucesso!")
+        novo_estado = self.app.alternar_estado(nome)
+
+        if novo_estado is None:
+            print("O restaurante não foi encontrado!")
+
         else:
-            print(f"Restaurante {nome_restaurante} não encontrado.")
+            status = "ativado" if novo_estado else "desativado"
+
+            print(f"O restaurante {nome} foi {status} com sucesso!")
 
         self.voltar_ao_menu_principal()
-        
 
+    # Lista os restaurantes
     def listar_restaurantes(self):
-        self.exibir_subtitulo("Listando os Restaurantes\n")
-        print(f"{'Nome'.ljust(20)} | {'Categoria'.ljust(20)} | {'Status'}")
+        self.exibir_subtitulo("Listando os restaurantes\n")
 
-        for restaurante in self.app.listar_restaurantes():
-            print(restaurante)
+        restaurantes = self.app.listar_restaurantes()
+
+        if restaurantes:
+
+            print(
+                f"{'Nome do Restaurante'.ljust(21)} | "
+                f"{'Categoria'.ljust(20)} | Status")
+
+            print("-" * 65)
+
+            for nome, categoria, ativo in restaurantes:
+
+                status = "ativado" if ativo else "desativado"
+
+                print(
+                    f"{nome.ljust(21)} | "
+                    f"{categoria.ljust(20)} | "
+                    f"{status}")
+
+        else:
+            print("Nenhum restaurante cadastrado.")
 
         self.voltar_ao_menu_principal()
 
+    # Exclui um restaurante
+    def excluir_restaurante(self):
+        self.exibir_subtitulo("Excluir restaurante\n")
+
+        restaurantes = self.app.listar_restaurantes()
+
+        if not restaurantes:
+            print("Nenhum restaurante cadastrado para excluir.")
+            self.voltar_ao_menu_principal()
+            return
+
+        print("Restaurantes cadastrados:")
+        print("-" * 40)
+
+        for nome, categoria, _ in restaurantes:
+            print(f"• {nome} ({categoria})")
+
+        print()
+
+        nome = input("Digite o nome do restaurante que deseja excluir: ")
+
+        if self.app.restaurante_existe(nome):
+
+            confirmacao = input(
+                f'Tem certeza que deseja excluir o restaurante '
+                f'"{nome}"? (s/n): ')
+
+            if confirmacao.lower() == "s":
+
+                self.app.excluir_restaurante(nome)
+
+                print(f"O restaurante {nome} foi excluído com sucesso!")
+
+            else:
+                print("Exclusão cancelada.")
+
+        else:
+            print("O restaurante não foi encontrado!")
+
+        self.voltar_ao_menu_principal()
+
+    # Finaliza o programa
     def finalizar_app(self):
-        self.exibir_subtitulo("Finalizando o programa...\n")
+        self.exibir_subtitulo(
+            "Finalizando o app\n")
 
-
+    # Mensagem de opção inválida
     def opcao_invalida(self):
-        print("Opção inválida. Por favor, tente novamente.\n")
+        print("Opção inválida!\n")
         self.voltar_ao_menu_principal()
 
+    # Volta ao menu principal
     def voltar_ao_menu_principal(self):
-        input("\nPressione uma tecla para voltar ao menu principal...")
+        input("\nDigite uma tecla para voltar ao menu principal")
+
         self.main()
 
-
+    # Escolhe uma opção
     def escolher_opcao(self):
-        try:
-            opcao_escolhida = int(input("Escolha uma opção: "))
 
+        try:
+            opcao_escolhida = int(
+                input("Escolha uma opção: ")
+            )
             if opcao_escolhida == 1:
                 self.cadastrar_novo_restaurante()
             elif opcao_escolhida == 2:
                 self.listar_restaurantes()
             elif opcao_escolhida == 3:
-                self.alternar_estado_restaurante()
+                self.alternar_estado_do_restaurante()
             elif opcao_escolhida == 4:
+                self.excluir_restaurante()
+            elif opcao_escolhida == 5:
                 self.finalizar_app()
             else:
                 self.opcao_invalida()
+
         except ValueError:
             self.opcao_invalida()
 
+    # Função principal
     def main(self):
         os.system("cls")
+
         self.exibir_nome_do_programa()
         self.exibir_opcoes()
         self.escolher_opcao()
 
+
+# Ponto de entrada do programa
 if __name__ == "__main__":
+
     menu = Menu()
     menu.main()
