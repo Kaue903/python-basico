@@ -103,6 +103,38 @@ def deletar_jogo(titulo):
 
     return encontrou
 
+def buscar_jogo(titulo):
+    # Busca um jogo pelo titulo exato (outra forma sem usar id). Usado antes de fazer a edição.
+    conn = sqlite3.connect(CAMINHO_BANCO)
+    cursor = conn.cursor()
+
+    cursor.execute(
+        "SELECT titulo, plataforma FROM jogos WHERE titulo = ?",
+        (titulo,),
+    )
+
+    jogo = cursor.fetchone()
+
+    conn.close()
+    return jogo
+
+
+def atualizar_jogo(titulo_atual, novo_titulo, nova_plataforma):
+    conn = sqlite3.connect(CAMINHO_BANCO)
+    cursor = conn.cursor()
+
+    cursor.execute(
+        "UPDATE jogos SET titulo = ?, plataforma = ? WHERE titulo = ?",
+        (novo_titulo, nova_plataforma, titulo_atual),
+    )
+
+    encontrou = cursor.rowcount > 0
+
+    conn.commit()
+    conn.close()
+
+    return encontrou
+
 
 def exibir_menu():
     exibir_cabecalho("🎮 GameVault")
@@ -111,7 +143,8 @@ def exibir_menu():
     print("2. Listar jogos")
     print("3. Marcar jogo como zerado")
     print("4. Deletar jogo")
-    print("5. Sair")
+    print("5. Editar jogo")
+    print("6. Sair")
     print()
 
 
@@ -176,8 +209,44 @@ def main():
 
             pausar()
 
-        # Sair
+        #Editar dados
         elif opcao == "5":
+            exibir_cabecalho("Editar jogo")
+
+            titulo = input("Título do jogo que deseja atualizar: ")
+
+            # Localiza o jogo correto para atualizar
+            jogo = buscar_jogo(titulo)
+
+            # Buscou jogo que não existe
+            if jogo is None:
+                print(f"\n'{titulo}' não encontrado!")
+                print("Confira se digitou os dados corretamente.")
+
+            else:
+                titulo_atual, plataforma_atual = jogo
+                print(f"\nJogo encontrado: {titulo_atual} ({plataforma_atual})")
+
+                # Captura os novos títulos e plataformas
+                novo_titulo = input(f"Novo título (Enter para manter '{titulo_atual}'): ")
+                nova_plataforma = input(f"Nova plataforma (Enter para manter '{plataforma_atual}'): ")
+
+                # Se a pessoa apertou Enter, mantém o valor atual
+                if novo_titulo.strip() == "":
+                    novo_titulo = titulo_atual
+                if nova_plataforma.strip() == "":
+                    nova_plataforma = plataforma_atual
+
+                # Confirma a atualização
+                if atualizar_jogo(titulo_atual, novo_titulo, nova_plataforma):
+                    print(f"\nJogo atualizado com sucesso: '{novo_titulo}' ({nova_plataforma})")
+                else:
+                    print("\nNão foi possível atualizar o jogo.")
+
+            pausar()
+
+        # Sair
+        elif opcao == "6":
             print("Até a próxima! 😁")
             break
 
