@@ -252,7 +252,7 @@ def main():
 
         # Opção inválida
         else:
-            print("Opção inválida! Escolha um número de 1 a 5.")
+            print("Opção inválida! Escolha um número de 1 a 6.")
             pausar()
 
 
